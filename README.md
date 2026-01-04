@@ -23,10 +23,13 @@ flowchart LR
         F["📝 doc.md<br/>+ YAML frontmatter"]
     end
 
+    G["🤖 AI Agents<br/>No MCP needed"]
+
     A --> B & C
     B & C --> D
     D --> E
     E --> F
+    F --> G
 ```
 
 ## Features
