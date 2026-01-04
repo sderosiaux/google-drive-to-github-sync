@@ -164,6 +164,20 @@ modified_time: "2024-01-15T10:30:00Z"
 # Document content here...
 ```
 
+## Why not just use MCP?
+
+MCP (Model Context Protocol) allows AI assistants to access Google Drive directly. So why sync to GitHub?
+
+- **Direct file access**: Files are in your repo, instantly available to any tool, script, or AI
+- **Searchable**: Full-text search with `grep`, GitHub search, or your IDE
+- **Diffable**: See what changed between syncs with `git diff`
+- **Versionable**: Full history of every document change
+- **Offline**: Works without API calls or authentication
+- **CI/CD friendly**: Build pipelines can process the markdown directly
+- **No runtime dependency**: No need for MCP server running
+
+MCP is great for interactive queries. This tool is for having a persistent, versioned mirror.
+
 ## Development
 
 ```bash
