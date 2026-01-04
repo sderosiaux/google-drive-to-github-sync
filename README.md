@@ -20,15 +20,13 @@ flowchart LR
     end
 
     subgraph GitHub Repo
-        F["📝 doc.md"]
-        G["---\ntitle: ...\ndrive_id: ...\n---"]
+        F["📝 doc.md<br/>+ YAML frontmatter"]
     end
 
     A --> B & C
     B & C --> D
     D --> E
     E --> F
-    F --> G
 ```
 
 ## Features
