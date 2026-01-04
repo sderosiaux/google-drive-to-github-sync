@@ -1,0 +1,17 @@
+# Example configuration for Google Drive to GitHub sync
+# Copy this file to .drive-sync.yml and update with your folder IDs
+
+sync:
+  - drive_folder_id: "1AbcDriveFolderId"
+    github_folder: "product-docs"
+    # Optional: exclude folders/files using glob patterns (case-insensitive)
+    exclude_folders:
+      - "Archive"
+      - "*backup*"
+    exclude_files:
+      - "DRAFT*"
+      - "*-old"
+      - "*.tmp"
+
+  - drive_folder_id: "9XyzDriveFolderId"
+    github_folder: "security"
