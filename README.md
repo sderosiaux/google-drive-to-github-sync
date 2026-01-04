@@ -1,5 +1,9 @@
 # Google Drive to GitHub Markdown Mirror
 
+[![GitHub Marketplace](https://img.shields.io/badge/Marketplace-Google%20Drive%20Sync-blue?logo=github)](https://github.com/marketplace/actions/google-drive-to-github-sync)
+[![GitHub release](https://img.shields.io/github/v/release/sderosiaux/google-drive-to-github-sync)](https://github.com/sderosiaux/google-drive-to-github-sync/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Sync Google Docs from Drive folders to GitHub as Markdown files with YAML frontmatter.
 
 ## Features
