@@ -10,117 +10,20 @@ Sync Google Docs from Drive folders to GitHub as Markdown files with YAML frontm
 - YAML frontmatter with metadata (title, drive_id, modified_time)
 - Exclusion patterns for files and folders
 - Shared Drive (Team Drive) support
-- Auto-commit option for CI/CD
 - Dry-run mode to preview changes
 
-## Prerequisites
+## Quick Start (GitHub Action)
 
-- Python 3.10+
-- [Pandoc](https://pandoc.org/installing.html) installed and in PATH
-- Google Cloud service account with Drive API access
+Add this workflow to any repo:
 
-## Installation
-
-```bash
-pip install -e .
-```
-
-## Google Service Account Setup
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project (or select existing)
-3. Enable the **Google Drive API**
-4. Go to **IAM & Admin > Service Accounts**
-5. Create a service account
-6. Create a JSON key and download it
-7. Share your Drive folder(s) with the service account email (e.g., `my-service@project.iam.gserviceaccount.com`)
-   - **Viewer** access: can list files but NOT export Google Docs
-   - **Contributor** access: required to export Google Docs to DOCX
-
-## Configuration
-
-Create a `.drive-sync.yml` file in your repository root:
-
-```yaml
-sync:
-  - drive_folder_id: "1AbcDriveFolderId"
-    github_folder: "docs/product"
-    exclude_folders:
-      - "Archive"
-      - "*backup*"
-    exclude_files:
-      - "DRAFT*"
-      - "*-old"
-
-  - drive_folder_id: "9XyzDriveFolderId"
-    github_folder: "docs/security"
-```
-
-### Finding Drive Folder IDs
-
-Open the folder in Google Drive. The URL looks like:
-```
-https://drive.google.com/drive/folders/1qXYZ123abcDEF456
-                                        └─────────────────┘
-                                         This is the folder ID
-```
-
-## CLI Usage
-
-```bash
-# Basic sync
-drive-sync --credentials-file path/to/credentials.json
-
-# Using environment variable
-export GOOGLE_SERVICE_ACCOUNT_JSON='{"type":"service_account",...}'
-drive-sync
-
-# Preview changes without writing (dry-run)
-drive-sync --dry-run
-
-# Verbose output
-drive-sync -v
-
-# Sync and commit changes
-drive-sync --commit
-
-# Custom config file
-drive-sync --config my-config.yml
-```
-
-### Commands
-
-```bash
-# Initialize a new config file interactively
-drive-sync init
-
-# Verify credentials and folder access
-drive-sync verify
-```
-
-### All Options
-
-| Option | Description |
-|--------|-------------|
-| `--config PATH` | Config file (default: `.drive-sync.yml`) |
-| `--credentials JSON` | Service account JSON string |
-| `--credentials-file PATH` | Path to service account JSON file |
-| `--base-path PATH` | Output directory (default: current) |
-| `--dry-run` | Preview changes without writing |
-| `-v, --verbose` | Enable debug logging |
-| `--commit` | Commit changes to git after sync |
-
-## GitHub Actions
-
-Add this workflow to `.github/workflows/sync.yml`:
-
+**`.github/workflows/sync.yml`**
 ```yaml
 name: Sync Drive to GitHub
 
 on:
   schedule:
     - cron: "0 */6 * * *"  # Every 6 hours
-  workflow_dispatch:       # Manual trigger
+  workflow_dispatch:        # Manual trigger
 
 permissions:
   contents: write
@@ -131,35 +34,121 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: sderosiaux/google-drive-to-github-sync@main
         with:
-          python-version: "3.12"
-
-      - name: Install Pandoc
-        run: sudo apt-get update && sudo apt-get install -y pandoc
-
-      - name: Install dependencies
-        run: pip install -e .
-
-      - name: Configure git
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-
-      - name: Run sync
-        env:
-          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
-        run: drive-sync --verbose --commit
-
-      - name: Push changes
-        run: git push || echo "Nothing to push"
+          google_credentials: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          config: |
+            sync:
+              - drive_folder_id: "1qXYZ123abcDEF456"
+                github_folder: "docs/product"
+              - drive_folder_id: "9abcDEF789xyz"
+                github_folder: "docs/security"
+                exclude_folders:
+                  - Archive
+                  - "*backup*"
+                exclude_files:
+                  - "DRAFT*"
 ```
+
+### Action Inputs
+
+| Input | Required | Description |
+|-------|----------|-------------|
+| `google_credentials` | Yes | Service account JSON (use a secret) |
+| `config` | Yes | Inline YAML configuration |
+| `commit` | No | Commit changes after sync (default: `true`) |
+| `commit_message` | No | Custom commit message |
 
 ### Setting up the Secret
 
-1. Go to your GitHub repo > Settings > Secrets and variables > Actions
+1. Go to your GitHub repo → Settings → Secrets and variables → Actions
 2. Create a new secret named `GOOGLE_SERVICE_ACCOUNT_JSON`
 3. Paste the entire contents of your service account JSON file
+
+## Local Usage (Testing)
+
+For testing locally before setting up the GitHub Action.
+
+### Prerequisites
+
+- Python 3.10+
+- [Pandoc](https://pandoc.org/installing.html)
+
+### Installation
+
+```bash
+# Clone and install
+git clone https://github.com/sderosiaux/google-drive-to-github-sync.git
+cd google-drive-to-github-sync
+pip install -e .
+```
+
+### Configuration
+
+Create a `.drive-sync.yml` file:
+
+```yaml
+sync:
+  - drive_folder_id: "1qXYZ123abcDEF456"
+    github_folder: "docs"
+```
+
+### Commands
+
+```bash
+# Preview changes (dry-run)
+drive-sync --dry-run --credentials-file ~/path/to/credentials.json
+
+# Run sync
+drive-sync --credentials-file ~/path/to/credentials.json -v
+
+# Verify access to folders
+drive-sync verify --credentials-file ~/path/to/credentials.json
+
+# Create a new config file
+drive-sync init
+```
+
+### Environment Variable
+
+Instead of `--credentials-file`, you can use:
+
+```bash
+export GOOGLE_SERVICE_ACCOUNT_JSON="$(cat ~/path/to/credentials.json)"
+drive-sync --dry-run
+```
+
+### CLI Options
+
+| Option | Description |
+|--------|-------------|
+| `--config PATH` | Config file (default: `.drive-sync.yml`) |
+| `--credentials-file PATH` | Path to service account JSON file |
+| `--credentials JSON` | Service account JSON string |
+| `--base-path PATH` | Output directory (default: current) |
+| `--dry-run` | Preview changes without writing |
+| `-v, --verbose` | Enable debug logging |
+| `--commit` | Commit changes to git after sync |
+
+## Google Service Account Setup
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a project (or select existing)
+3. Enable the **Google Drive API**
+4. Go to **IAM & Admin → Service Accounts**
+5. Create a service account
+6. Create a JSON key and download it
+7. Share your Drive folder(s) with the service account email
+   - **Contributor** access required (Viewer cannot export Google Docs)
+
+### Finding Drive Folder IDs
+
+Open the folder in Google Drive:
+```
+https://drive.google.com/drive/folders/1qXYZ123abcDEF456
+                                        └─────────────────┘
+                                         This is the folder ID
+```
 
 ## Output Format
 
@@ -178,14 +167,8 @@ modified_time: "2024-01-15T10:30:00Z"
 ## Development
 
 ```bash
-# Install dev dependencies
 pip install -e ".[dev]"
-
-# Run tests
 pytest
-
-# Run with coverage
-pytest --cov=drive_sync
 ```
 
 ## License
