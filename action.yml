@@ -60,7 +60,7 @@ runs:
       shell: bash
       env:
         GOOGLE_SERVICE_ACCOUNT_JSON: ${{ inputs.google_credentials }}
-      run: drive-sync --verbose ${{ inputs.commit == 'true' && '--commit' || '' }}
+      run: drive-sync ${{ inputs.commit == 'true' && '--commit' || '' }}
 
     - name: Push changes
       if: inputs.commit == 'true'
