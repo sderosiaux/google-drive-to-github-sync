@@ -6,6 +6,31 @@
 
 Sync Google Docs from Drive folders to GitHub as Markdown files with YAML frontmatter.
 
+```mermaid
+flowchart LR
+    subgraph Google Drive
+        A[("📁 Folder")]
+        B["📄 Google Doc"]
+        C["📄 .docx"]
+    end
+
+    subgraph GitHub Action
+        D["🔄 Sync"]
+        E["Convert to Markdown"]
+    end
+
+    subgraph GitHub Repo
+        F["📝 doc.md"]
+        G["---\ntitle: ...\ndrive_id: ...\n---"]
+    end
+
+    A --> B & C
+    B & C --> D
+    D --> E
+    E --> F
+    F --> G
+```
+
 ## Features
 
 - Converts Google Docs and `.docx` files to Markdown via Pandoc
