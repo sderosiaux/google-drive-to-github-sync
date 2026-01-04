@@ -1,0 +1,68 @@
+name: "Google Drive to GitHub Sync"
+description: "Sync Google Docs from Drive to GitHub as Markdown"
+author: "sderosiaux"
+
+branding:
+  icon: "refresh-cw"
+  color: "blue"
+
+inputs:
+  config:
+    description: "Inline YAML configuration (sync entries)"
+    required: true
+  google_credentials:
+    description: "Google service account JSON"
+    required: true
+  commit:
+    description: "Commit changes after sync"
+    required: false
+    default: "true"
+  commit_message:
+    description: "Custom commit message (default: auto-generated)"
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install Pandoc
+      shell: bash
+      run: |
+        if [[ "$RUNNER_OS" == "Linux" ]]; then
+          sudo apt-get update && sudo apt-get install -y pandoc
+        elif [[ "$RUNNER_OS" == "macOS" ]]; then
+          brew install pandoc
+        fi
+
+    - name: Install drive-sync
+      shell: bash
+      run: pip install "${{ github.action_path }}"
+
+    - name: Write config file
+      shell: bash
+      run: |
+        cat > .drive-sync.yml << 'EOFCONFIG'
+        ${{ inputs.config }}
+        EOFCONFIG
+
+    - name: Configure git
+      shell: bash
+      run: |
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git config user.name "github-actions[bot]"
+
+    - name: Run sync
+      shell: bash
+      env:
+        GOOGLE_SERVICE_ACCOUNT_JSON: ${{ inputs.google_credentials }}
+      run: drive-sync --verbose ${{ inputs.commit == 'true' && '--commit' || '' }}
+
+    - name: Push changes
+      if: inputs.commit == 'true'
+      shell: bash
+      run: git push || echo "Nothing to push"
