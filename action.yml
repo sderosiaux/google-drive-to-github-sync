@@ -11,8 +11,8 @@ inputs:
     description: "Inline YAML configuration (sync entries)"
     required: true
   google_credentials:
-    description: "Google service account JSON"
-    required: true
+    description: "Google service account JSON (omit to use Application Default Credentials, including WIF)"
+    required: false
   commit:
     description: "Commit changes after sync"
     required: false

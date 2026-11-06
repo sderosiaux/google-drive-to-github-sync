@@ -43,3 +43,6 @@ ENV/
 
 # Local config (use .drive-sync.yml.example as template)
 .drive-sync.yml
+
+# Generated credentials from google-github-actions/auth
+gha-creds-*.json

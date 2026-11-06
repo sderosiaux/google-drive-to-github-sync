@@ -84,7 +84,7 @@ jobs:
 
 | Input | Required | Description |
 |-------|----------|-------------|
-| `google_credentials` | Yes | Service account JSON (use a secret) |
+| `google_credentials` | No | Service account JSON; omit to use Application Default Credentials (including WIF) |
 | `config` | Yes | Inline YAML configuration |
 | `commit` | No | Commit changes after sync (default: `true`) |
 | `commit_message` | No | Custom commit message |
@@ -94,6 +94,39 @@ jobs:
 1. Go to your GitHub repo → Settings → Secrets and variables → Actions
 2. Create a new secret named `GOOGLE_SERVICE_ACCOUNT_JSON`
 3. Paste the entire contents of your service account JSON file
+
+### Workload Identity Federation (no service account key)
+
+Configure [Workload Identity Federation through a service account](https://github.com/google-github-actions/auth#workload-identity-federation-through-a-service-account), restricting access to your GitHub repository. Enable the Google Drive API and share the source folders with that service account. You do not need to create a JSON key.
+
+Run `google-github-actions/auth` after checkout and omit `google_credentials`:
+
+```yaml
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+      - uses: sderosiaux/google-drive-to-github-sync@main
+        with:
+          config: |
+            sync:
+              - drive_folder_id: "YOUR_DRIVE_FOLDER_ID"
+                github_folder: "docs"
+```
+
+The auth action creates a temporary credentials file and sets `GOOGLE_APPLICATION_CREDENTIALS`. The sync client loads it through Application Default Credentials with the `drive.readonly` scope. Keep the auth action's `create_credentials_file` and `export_environment_variables` settings enabled (the defaults).
+
+Add `gha-creds-*.json` to the consuming repository's `.gitignore` and exclude it from uploaded artifacts. Automatic sync commits also exclude files with this name pattern.
 
 ## Local Usage (Testing)
 
@@ -147,6 +180,16 @@ Instead of `--credentials-file`, you can use:
 export GOOGLE_SERVICE_ACCOUNT_JSON="$(cat ~/path/to/credentials.json)"
 drive-sync --dry-run
 ```
+
+When no explicit JSON credentials are supplied, the CLI uses Application Default Credentials, including a WIF configuration file referenced by `GOOGLE_APPLICATION_CREDENTIALS`:
+
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS="/path/to/wif-credentials.json"
+drive-sync --dry-run
+drive-sync verify
+```
+
+Credential precedence is `--credentials-file`, then `--credentials`, then a non-empty `GOOGLE_SERVICE_ACCOUNT_JSON`, then Application Default Credentials. Invalid explicit credentials fail instead of falling back to a different identity.
 
 ### CLI Options
 

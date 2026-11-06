@@ -25,39 +25,24 @@ sync:
 """
 
 
-def load_credentials(args: argparse.Namespace, logger: logging.Logger) -> str | None:
+def load_credentials(args: argparse.Namespace) -> str | None:
     """Load credentials from file, argument, or environment.
 
     Args:
         args: Parsed CLI arguments.
-        logger: Logger instance.
 
     Returns:
-        Credentials JSON string, or None if not found.
+        Credentials JSON string, or None to use Application Default Credentials.
+        Explicit credential file errors are propagated without falling back.
     """
     # Priority: --credentials-file > --credentials > env var
     if args.credentials_file:
-        try:
-            return args.credentials_file.read_text(encoding="utf-8")
-        except FileNotFoundError:
-            logger.error(f"Credentials file not found: {args.credentials_file}")
-            return None
-        except PermissionError:
-            logger.error(f"Cannot read credentials file: {args.credentials_file}")
-            return None
+        return args.credentials_file.read_text(encoding="utf-8")
 
-    if args.credentials:
+    if args.credentials is not None:
         return args.credentials
 
-    env_creds = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
-    if env_creds:
-        return env_creds
-
-    logger.error(
-        "No credentials provided. Use --credentials-file, --credentials, "
-        "or set GOOGLE_SERVICE_ACCOUNT_JSON environment variable"
-    )
-    return None
+    return os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON") or None
 
 
 def git_commit_changes(base_path: Path, logger: logging.Logger) -> bool:
@@ -72,7 +57,8 @@ def git_commit_changes(base_path: Path, logger: logging.Logger) -> bool:
     """
     try:
         subprocess.run(
-            ["git", "add", "-A"],
+            # google-github-actions/auth creates credentials in the checkout.
+            ["git", "add", "-A", "--", ".", ":(glob,exclude)**/gha-creds-*.json"],
             cwd=base_path,
             check=True,
             capture_output=True,
@@ -159,12 +145,8 @@ def cmd_verify(args: argparse.Namespace) -> int:
     setup_logging(args.verbose)
     logger = logging.getLogger(__name__)
 
-    credentials = load_credentials(args, logger)
-    if not credentials:
-        return 1
-
     try:
-        client = DriveClient(credentials)
+        client = DriveClient(load_credentials(args))
         logger.info("Credentials valid")
     except Exception as e:
         logger.error(f"Invalid credentials: {e}")
@@ -228,10 +210,6 @@ def cmd_sync(args: argparse.Namespace) -> int:
         logger.error("Pandoc is not installed or not in PATH")
         return 1
 
-    credentials = load_credentials(args, logger)
-    if not credentials:
-        return 1
-
     try:
         config = load_config(args.config)
         logger.info(f"Loaded configuration with {len(config.sync)} sync entries")
@@ -240,7 +218,7 @@ def cmd_sync(args: argparse.Namespace) -> int:
         return 1
 
     try:
-        client = DriveClient(credentials)
+        client = DriveClient(load_credentials(args))
     except Exception as e:
         logger.error(f"Failed to initialize Drive client: {e}")
         return 1
