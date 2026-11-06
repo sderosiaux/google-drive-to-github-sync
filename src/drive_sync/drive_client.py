@@ -4,6 +4,7 @@ import io
 import json
 from dataclasses import dataclass
 
+import google.auth
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
@@ -38,16 +39,19 @@ class DriveFolder:
 class DriveClient:
     """Client for interacting with Google Drive API."""
 
-    def __init__(self, credentials_json: str):
+    def __init__(self, credentials_json: str | None = None):
         """Initialize the Drive client.
 
         Args:
-            credentials_json: JSON string containing service account credentials.
+            credentials_json: Service account JSON, or None to use Application
+                Default Credentials (including Workload Identity Federation).
         """
-        creds_dict = json.loads(credentials_json)
-        credentials = service_account.Credentials.from_service_account_info(
-            creds_dict, scopes=SCOPES
-        )
+        if credentials_json is not None:
+            credentials = service_account.Credentials.from_service_account_info(
+                json.loads(credentials_json), scopes=SCOPES
+            )
+        else:
+            credentials, _ = google.auth.default(scopes=SCOPES)
         self._service = build("drive", "v3", credentials=credentials)
 
     def list_files(self, folder_id: str) -> list[DriveFile]:

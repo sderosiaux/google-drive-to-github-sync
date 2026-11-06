@@ -1,14 +1,17 @@
 """Tests for the drive_client module."""
 
 import json
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from google.auth import identity_pool
 
 from drive_sync.drive_client import (
     DOCX_MIME_TYPE,
     GOOGLE_DOC_MIME_TYPE,
     GOOGLE_FOLDER_MIME_TYPE,
+    SCOPES,
     DriveClient,
     DriveFile,
     DriveFolder,
@@ -46,6 +49,60 @@ class TestDriveFolder:
 
 class TestDriveClient:
     """Tests for DriveClient class."""
+
+    def test_wif_credentials_from_environment(self, tmp_path: Path, monkeypatch) -> None:
+        """Load a WIF configuration using the real auth library, without networking."""
+        service_account = "sync@test-project.iam.gserviceaccount.com"
+        credentials_file = tmp_path / "gha-creds-test.json"
+        credentials_file.write_text(json.dumps({
+            "type": "external_account",
+            "audience": "//iam.googleapis.com/projects/123/locations/global/workloadIdentityPools/github/providers/github",
+            "subject_token_type": "urn:ietf:params:oauth:token-type:jwt",
+            "token_url": "https://sts.googleapis.com/v1/token",
+            "service_account_impersonation_url": (
+                "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/"
+                f"{service_account}:generateAccessToken"
+            ),
+            "credential_source": {
+                "url": "https://example.invalid/oidc",
+                "headers": {"Authorization": "Bearer test-only"},
+                "format": {"type": "json", "subject_token_field_name": "value"},
+            },
+        }))
+        monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", str(credentials_file))
+        monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "test-project")
+
+        with patch("drive_sync.drive_client.build") as mock_build, patch(
+            "google.auth.transport.requests.Request.__call__",
+            side_effect=AssertionError("Unexpected network request"),
+        ):
+            DriveClient()
+
+        credentials = mock_build.call_args.kwargs["credentials"]
+        assert isinstance(credentials, identity_pool.Credentials)
+        assert credentials.scopes == SCOPES
+        assert credentials.service_account_email == service_account
+
+    @patch("drive_sync.drive_client.google.auth.default")
+    @patch("drive_sync.drive_client.build")
+    @patch("drive_sync.drive_client.service_account.Credentials.from_service_account_info")
+    def test_explicit_credentials_take_precedence(
+        self, mock_creds, mock_build, mock_default, mock_credentials_json
+    ) -> None:
+        DriveClient(mock_credentials_json)
+
+        mock_creds.assert_called_once_with(json.loads(mock_credentials_json), scopes=SCOPES)
+        mock_build.assert_called_once_with("drive", "v3", credentials=mock_creds.return_value)
+        mock_default.assert_not_called()
+
+    @pytest.mark.parametrize("credentials_json", ["", "not json", "{}"])
+    @patch("drive_sync.drive_client.google.auth.default")
+    def test_invalid_explicit_credentials_do_not_fall_back(
+        self, mock_default, credentials_json
+    ) -> None:
+        with pytest.raises(ValueError):
+            DriveClient(credentials_json)
+        mock_default.assert_not_called()
 
     @pytest.fixture
     def mock_credentials_json(self) -> str:
